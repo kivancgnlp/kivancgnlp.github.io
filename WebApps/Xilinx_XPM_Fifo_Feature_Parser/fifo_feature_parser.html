@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Xilinx XPM Fifo Feature Parser</title>
+  <style>
+    body {
+      font-family: 'Segoe UI', Arial, sans-serif;
+      background: #f0f2f5;
+      margin: 0;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .container {
+      background: #fff;
+      max-width: 420px;
+      margin: 2em auto;
+      border-radius: 12px;
+      box-shadow: 0 4px 24px rgba(0,0,0,0.10), 0 1.5px 4px rgba(0,0,0,0.08);
+      padding: 2em 2em 1.5em 2em;
+    }
+    h2 {
+      text-align: center;
+      color: #2d3a4b;
+      margin-bottom: 1.5em;
+      font-weight: 600;
+      letter-spacing: 0.5px;
+    }
+    input[type="text"] {
+      width: 100%;
+      padding: 0.7em 1em;
+      font-size: 1.1em;
+      border: 1.5px solid #d1d5db;
+      border-radius: 6px;
+      margin-bottom: 0.7em;
+      transition: border 0.2s;
+      box-sizing: border-box;
+      background: #f8fafc;
+    }
+    input[type="text"]:focus {
+      border-color: #4f8cff;
+      outline: none;
+      background: #fff;
+    }
+    button {
+      width: 100%;
+      background: linear-gradient(90deg, #4f8cff 0%, #38b6ff 100%);
+      color: #fff;
+      border: none;
+      border-radius: 6px;
+      padding: 0.7em 0;
+      font-size: 1.1em;
+      font-weight: 500;
+      cursor: pointer;
+      box-shadow: 0 2px 8px rgba(79,140,255,0.08);
+      transition: background 0.2s, box-shadow 0.2s;
+      margin-bottom: 1.2em;
+    }
+    button:hover, button:focus {
+      background: linear-gradient(90deg, #357ae8 0%, #1fa2ff 100%);
+      box-shadow: 0 4px 16px rgba(79,140,255,0.13);
+    }
+    #bitToggles {
+      margin-top: 0.5em;
+      margin-bottom: 1.2em;
+      background: #f8fafc;
+      border-radius: 8px;
+      padding: 1em 1em 0.5em 1em;
+      border: 1px solid #e5e7eb;
+    }
+    #bitToggles b {
+      color: #2d3a4b;
+      font-size: 1em;
+      font-weight: 500;
+    }
+    #bitToggles label {
+      display: flex;
+      align-items: center;
+      margin: 0.3em 0;
+      font-size: 1em;
+      color: #374151;
+      cursor: pointer;
+      user-select: none;
+    }
+    #bitToggles input[type="checkbox"] {
+      accent-color: #4f8cff;
+      margin-right: 0.7em;
+      width: 1.1em;
+      height: 1.1em;
+      cursor: pointer;
+    }
+    .output {
+      margin-top: 1.2em;
+      padding: 0.8em 1em;
+      background: #fff4f4;
+      border-radius: 6px;
+      border: 1px solid #ffd6d6;
+      color: #c0392b;
+      font-size: 1em;
+      min-height: 1.2em;
+      text-align: center;
+      display: none;
+    }
+    .output .error {
+      color: #c0392b;
+      font-weight: 500;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h2>Xilinx XPM Fifo Feature Parser</h2>
+    <input id="hexInput" type="text" placeholder="Enter hex value (e.g. 707)" value="707">
+    <button id="parseBtn">Parse</button>
+    <div id="bitToggles" style="margin-top:1em;"></div>
+    <div id="output" class="output"></div>
+  </div>
+  <script>
+    // Bit positions as per Objective-C code
+    const features = [
+      { name: 'overflow_flag', bit: 0 },
+      { name: 'prog_full_flag', bit: 1 },
+      { name: 'wr_data_count', bit: 2 },
+      { name: 'almost_full_flag', bit: 3 },
+      { name: 'wr_ack_flag', bit: 4 },
+      { name: 'underflow_flag', bit: 8 },
+      { name: 'prog_empty_flag', bit: 9 },
+      { name: 'rd_data_count', bit: 10 },
+      { name: 'almost_empty_flag', bit: 11 },
+      { name: 'data_valid_flag', bit: 12 },
+    ];
+
+    function parseFeatures(hexStr) {
+      // Only allow valid hex digits
+      if (!/^[0-9a-fA-F]+$/.test(hexStr)) return null;
+      let value = parseInt(hexStr, 16);
+      if (isNaN(value)) return null;
+      let setFeatures = features.filter(f => (value & (1 << f.bit))).map(f => f.name);
+      return setFeatures;
+    }
+
+    function showOutput(features) {
+      const output = document.getElementById('output');
+      if (features === null) {
+        output.innerHTML = '<span class="error">Invalid hex value.</span>';
+        output.style.display = '';
+      } else {
+        output.innerHTML = '';
+        output.style.display = 'none';
+      }
+    }
+
+    function updateCheckboxesFromHex(hexStr) {
+      let value = parseInt(hexStr, 16);
+      features.forEach(f => {
+        const cb = document.getElementById('cb_' + f.name);
+        if (cb) cb.checked = !isNaN(value) && (value & (1 << f.bit));
+      });
+    }
+
+    function updateHexFromCheckboxes() {
+      let value = 0;
+      features.forEach(f => {
+        const cb = document.getElementById('cb_' + f.name);
+        if (cb && cb.checked) value |= (1 << f.bit);
+      });
+      document.getElementById('hexInput').value = value.toString(16).toUpperCase();
+      showOutput(parseFeatures(value.toString(16)));
+    }
+
+    // Render checkboxes
+    const bitToggles = document.getElementById('bitToggles');
+    function labelize(name) {
+      return name.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+    }
+    bitToggles.innerHTML = '<b>Set bits:</b><br>' + features.map(f =>
+      `<label style='display:flex;align-items:center;margin:2px 0;'><input type='checkbox' id='cb_${f.name}'> ${labelize(f.name)}</label>`
+    ).join('');
+    features.forEach(f => {
+      document.getElementById('cb_' + f.name).addEventListener('change', updateHexFromCheckboxes);
+    });
+
+    document.getElementById('parseBtn').onclick = function() {
+      const hexStr = document.getElementById('hexInput').value.trim();
+      updateCheckboxesFromHex(hexStr);
+      showOutput(parseFeatures(hexStr));
+    };
+    document.getElementById('hexInput').addEventListener('keydown', function(e) {
+      if (e.key === 'Enter') {
+        updateCheckboxesFromHex(this.value.trim());
+        showOutput(parseFeatures(this.value.trim()));
+      }
+    });
+    // Sync checkboxes when input changes (on blur)
+    document.getElementById('hexInput').addEventListener('blur', function() {
+      updateCheckboxesFromHex(this.value.trim());
+    });
+    // Also validate on input change
+    document.getElementById('hexInput').addEventListener('input', function() {
+      updateCheckboxesFromHex(this.value.trim());
+      showOutput(parseFeatures(this.value.trim()));
+    });
+
+    // On page load, set initial state
+    window.addEventListener('DOMContentLoaded', function() {
+      const hexStr = document.getElementById('hexInput').value.trim();
+      updateCheckboxesFromHex(hexStr);
+      showOutput(parseFeatures(hexStr));
+    });
+  </script>
+</body>
+</html> 
