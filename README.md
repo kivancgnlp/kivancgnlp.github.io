@@ -1,5 +1,8 @@
 # My Public Projects 
 
+## Utility Applications Written In Rust
+
+- Recursive LOC accounting app : [LOC Counter](https://github.com/kivancgnlp/Rust_Lines_Of_Code_Counter/)
 
 ## Some Web Apps
 
