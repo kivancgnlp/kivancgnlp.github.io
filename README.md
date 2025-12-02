@@ -5,10 +5,14 @@
 - Recursive LOC accounting app : [LOC Counter](https://github.com/kivancgnlp/Rust_Lines_Of_Code_Counter/)
 - Brute force prime number search benchmark : [Prime Number Search Benchmark](https://github.com/kivancgnlp/Rust_Prime_Number_Search_Benchmark)
 
+## Xilinx Utility Applications
+- Xilinx Traffic Generator COE Assembler : [Xilinx Traffic Generator COE Assembler](https://github.com/kivancgnlp/Xilinx-Traffic-Generator-COE-Assembler-For-System-Init-and-Test) 
+- Xilinx XPM Fifo Feature Parser (HTML Version) : [Xilinx XPM Fifo Feature Parser](https://kivancgnlp.github.io/WebApps/Xilinx_XPM_Fifo_Feature_Parser/fifo_feature_parser.html)
+
 ## Some Web Apps
 
 - Tiroid CA Staging (Evreleme)(HTML Version) : [Tiroid CA Evreleme](https://kivancgnlp.github.io/WebApps/Tiroid_CA_Web_App/)
-- Xilinx XPM Fifo Feature Parser (HTML Version) : [Xilinx XPM Fifo Feature Parser](https://kivancgnlp.github.io/WebApps/Xilinx_XPM_Fifo_Feature_Parser/fifo_feature_parser.html)
+
 
 ## Sample C++ Apps
 
