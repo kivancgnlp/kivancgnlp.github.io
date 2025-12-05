@@ -8,8 +8,11 @@
 * Brute force prime number search benchmark : [Prime Number Search Benchmark](https://github.com/kivancgnlp/Rust_Prime_Number_Search_Benchmark)
 
 ## Xilinx Utility Applications
-- Xilinx Traffic Generator COE Assembler : [Xilinx Traffic Generator COE Assembler](https://github.com/kivancgnlp/Xilinx-Traffic-Generator-COE-Assembler-For-System-Init-and-Test) 
+- Xilinx Traffic Generator COE Assembler : [Xilinx Traffic Generator COE Assembler](https://github.com/kivancgnlp/Xilinx-Traffic-Generator-COE-Assembler-For-System-Init-and-Test)
+- Xilinx BitFile Commands Readback : [Xilinx BitFile Commands Readback](https://github.com/kivancgnlp/Xilinx-Bitfile-Commands-Reader)
 - Xilinx XPM Fifo Feature Parser (HTML Version) : [Xilinx XPM Fifo Feature Parser](https://kivancgnlp.github.io/WebApps/Xilinx_XPM_Fifo_Feature_Parser/fifo_feature_parser.html)
+
+
 
 ## Some Web Apps
 
