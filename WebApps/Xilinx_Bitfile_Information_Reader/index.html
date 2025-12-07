@@ -1,0 +1,298 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Xilinx Bitfile Reader</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .container {
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            padding: 40px;
+            max-width: 1200px;
+            width: 100%;
+            max-height: 90vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        h1 {
+            color: #333;
+            margin-bottom: 30px;
+            text-align: center;
+            font-size: 2.5em;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .upload-section {
+            margin-bottom: 30px;
+        }
+
+        .file-input-wrapper {
+            position: relative;
+            display: inline-block;
+            width: 100%;
+        }
+
+        .file-input-label {
+            display: block;
+            padding: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border-radius: 10px;
+            text-align: center;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+            font-size: 1.1em;
+            font-weight: 600;
+        }
+
+        .file-input-label:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(102, 126, 234, 0.4);
+        }
+
+        .file-input-label:active {
+            transform: translateY(0);
+        }
+
+        input[type="file"] {
+            position: absolute;
+            opacity: 0;
+            width: 100%;
+            height: 100%;
+            cursor: pointer;
+        }
+
+        .file-name {
+            margin-top: 10px;
+            color: #666;
+            font-size: 0.9em;
+            text-align: center;
+        }
+
+        .results-section {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            min-height: 400px;
+        }
+
+        .results-label {
+            margin-bottom: 10px;
+            color: #333;
+            font-weight: 600;
+            font-size: 1.1em;
+        }
+
+        textarea {
+            width: 100%;
+            flex: 1;
+            padding: 15px;
+            border: 2px solid #e0e0e0;
+            border-radius: 10px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.9em;
+            resize: none;
+            background: #f9f9f9;
+            color: #333;
+            line-height: 1.6;
+        }
+
+        textarea:focus {
+            outline: none;
+            border-color: #667eea;
+            background: white;
+        }
+
+        .status {
+            margin-top: 15px;
+            padding: 10px;
+            border-radius: 8px;
+            text-align: center;
+            font-weight: 500;
+            display: none;
+        }
+
+        .status.loading {
+            display: block;
+            background: #fff3cd;
+            color: #856404;
+        }
+
+        .status.success {
+            display: block;
+            background: #d4edda;
+            color: #155724;
+        }
+
+        .status.error {
+            display: block;
+            background: #f8d7da;
+            color: #721c24;
+        }
+
+        .button-group {
+            display: flex;
+            gap: 10px;
+            margin-top: 15px;
+        }
+
+        button {
+            flex: 1;
+            padding: 12px;
+            border: none;
+            border-radius: 8px;
+            font-size: 1em;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .btn-copy {
+            background: #667eea;
+            color: white;
+        }
+
+        .btn-copy:hover {
+            background: #5568d3;
+            transform: translateY(-2px);
+        }
+
+        .btn-clear {
+            background: #6c757d;
+            color: white;
+        }
+
+        .btn-clear:hover {
+            background: #5a6268;
+            transform: translateY(-2px);
+        }
+
+        button:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Xilinx Bitfile Reader</h1>
+        
+        <div class="upload-section">
+            <div class="file-input-wrapper">
+                <label for="fileInput" class="file-input-label">
+                    📁 Choose Bitfile to Upload
+                </label>
+                <input type="file" id="fileInput" accept=".bit,.bin">
+            </div>
+            <div class="file-name" id="fileName"></div>
+        </div>
+
+        <div class="results-section">
+            <div class="results-label">Results:</div>
+            <textarea id="results" readonly placeholder="Upload a bitfile to see the decoded results here..."></textarea>
+            <div class="button-group">
+                <button class="btn-copy" id="copyBtn" onclick="copyToClipboard()">Copy Results</button>
+                <button class="btn-clear" id="clearBtn" onclick="clearResults()">Clear</button>
+            </div>
+        </div>
+
+        <div class="status" id="status"></div>
+    </div>
+
+    <script type="module">
+        import init, { process_bitfile } from './pkg/Bitfile_reader_prototype_1.js';
+
+        let wasmInitialized = false;
+
+        async function initializeWasm() {
+            if (!wasmInitialized) {
+                try {
+                    await init();
+                    wasmInitialized = true;
+                    showStatus('WASM module loaded successfully', 'success');
+                } catch (error) {
+                    showStatus('Error loading WASM module: ' + error, 'error');
+                    console.error('WASM initialization error:', error);
+                }
+            }
+        }
+
+        function showStatus(message, type) {
+            const statusEl = document.getElementById('status');
+            statusEl.textContent = message;
+            statusEl.className = 'status ' + type;
+            setTimeout(() => {
+                statusEl.className = 'status';
+            }, 3000);
+        }
+
+        function updateFileName(fileName) {
+            document.getElementById('fileName').textContent = fileName ? `Selected: ${fileName}` : '';
+        }
+
+        document.getElementById('fileInput').addEventListener('change', async function(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            updateFileName(file.name);
+            showStatus('Processing file...', 'loading');
+
+            try {
+                await initializeWasm();
+
+                const arrayBuffer = await file.arrayBuffer();
+                const uint8Array = new Uint8Array(arrayBuffer);
+
+                const result = process_bitfile(uint8Array);
+                document.getElementById('results').value = result;
+                showStatus('File processed successfully!', 'success');
+            } catch (error) {
+                showStatus('Error processing file: ' + error, 'error');
+                console.error('Processing error:', error);
+                document.getElementById('results').value = 'Error: ' + error;
+            }
+        });
+
+        window.copyToClipboard = function() {
+            const textarea = document.getElementById('results');
+            textarea.select();
+            document.execCommand('copy');
+            showStatus('Results copied to clipboard!', 'success');
+        };
+
+        window.clearResults = function() {
+            document.getElementById('results').value = '';
+            document.getElementById('fileInput').value = '';
+            updateFileName('');
+            showStatus('Results cleared', 'success');
+        };
+
+        // Initialize WASM on page load
+        initializeWasm();
+    </script>
+</body>
+</html>
+

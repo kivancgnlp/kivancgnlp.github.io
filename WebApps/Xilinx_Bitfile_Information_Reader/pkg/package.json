@@ -1,0 +1,15 @@
+{
+  "name": "Bitfile_reader_prototype_1",
+  "type": "module",
+  "version": "0.1.0",
+  "files": [
+    "Bitfile_reader_prototype_1_bg.wasm",
+    "Bitfile_reader_prototype_1.js",
+    "Bitfile_reader_prototype_1.d.ts"
+  ],
+  "main": "Bitfile_reader_prototype_1.js",
+  "types": "Bitfile_reader_prototype_1.d.ts",
+  "sideEffects": [
+    "./snippets/*"
+  ]
+}
