@@ -1,11 +1,9 @@
 # My Public Projects 
 
-## Utility Applications Written In Rust
+## Utility Applications
 
-- Rust CLI tool that walks directories and reports per-language LOC : [LOC Counter](https://github.com/kivancgnlp/Rust_Lines_Of_Code_Counter/)
-  
-  
-* Brute force prime number search benchmark : [Prime Number Search Benchmark](https://github.com/kivancgnlp/Rust_Prime_Number_Search_Benchmark)
+- Rust CLI tool that walks directories and reports per-language LOC (Rust) : [LOC Counter](https://github.com/kivancgnlp/Rust_Lines_Of_Code_Counter/)
+- Brute force prime number search benchmark (Rust)  : [Prime Number Search Benchmark](https://github.com/kivancgnlp/Rust_Prime_Number_Search_Benchmark)
 
 ## Xilinx Utility Applications
 - Xilinx Traffic Generator COE Assembler (Rust) : [Xilinx Traffic Generator COE Assembler](https://github.com/kivancgnlp/Xilinx-Traffic-Generator-COE-Assembler-For-System-Init-and-Test)
