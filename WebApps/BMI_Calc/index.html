@@ -3,6 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <base href="./" />
     <title>Yew Styles Demo</title>
     <style>
         * {
@@ -324,13 +325,13 @@
             font-size: 1rem;
         }
     </style>
-<link rel="modulepreload" href="/yew_styles-3d0572f1f3443623.js" crossorigin="anonymous" integrity="sha384-DRf42yJbfS1Vs/+uevR/pUSVMpq312EJ2eKiuZtEkW4I5JuibXk8IVnm38TldiJ6"><link rel="preload" href="/yew_styles-3d0572f1f3443623_bg.wasm" crossorigin="anonymous" integrity="sha384-hkOq4yD9f9gNL+ylSmDZuIl1h/CG3E3eQ6UMoNslSMj0yL/bOKmYXc6ZFyf4SpcH" as="fetch" type="application/wasm"></head>
+<link rel="modulepreload" href="./yew_styles-3d0572f1f3443623.js" crossorigin="anonymous" integrity="sha384-DRf42yJbfS1Vs/+uevR/pUSVMpq312EJ2eKiuZtEkW4I5JuibXk8IVnm38TldiJ6"><link rel="preload" href="./yew_styles-3d0572f1f3443623_bg.wasm" crossorigin="anonymous" integrity="sha384-ChBlDlwnxYFpvK6u+Rz13Mjk1pATROmzQsoXopCAZaH1a59VIawlc2YeUKEDVoR9" as="fetch" type="application/wasm"></head>
 <body>
     <div id="app"></div>
 
 <script type="module">
-import init, * as bindings from '/yew_styles-3d0572f1f3443623.js';
-const wasm = await init({ module_or_path: '/yew_styles-3d0572f1f3443623_bg.wasm' });
+import init, * as bindings from './yew_styles-3d0572f1f3443623.js';
+const wasm = await init({ module_or_path: './yew_styles-3d0572f1f3443623_bg.wasm' });
 
 
 window.wasmBindings = bindings;
