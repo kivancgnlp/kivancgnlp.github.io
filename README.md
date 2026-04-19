@@ -17,6 +17,7 @@
 
 - BMI Calculator : [BMI Calculator](https://kivancgnlp.github.io/WebApps/BMI_Calc/index.html)
 - Tiroid CA Staging (Evreleme)(HTML Version) : [Tiroid CA Evreleme](https://kivancgnlp.github.io/WebApps/Tiroid_CA_Web_App/)
+- RCW reader for QorIQ processors : [RCW reader](https://kivancgnlp.github.io/WebApps/Freescale_QorIQ_RCW_Readback)
 
 
 ## Sample C++ Apps
