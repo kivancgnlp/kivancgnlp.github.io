@@ -355,5 +355,18 @@ td:nth-child(5) { }
   color: var(--error);
 }
 
+/* ===== CRC badge ===== */
+.crc-badge {
+  font-size: 0.75rem;
+  font-weight: 700;
+  border-radius: 4px;
+  padding: 0.15rem 0.55rem;
+  font-family: var(--font-mono);
+  cursor: default;
+}
+.crc-none  { background: var(--surface-alt); color: var(--text-muted); border: 1px solid var(--border); }
+.crc-ok    { background: rgba(74, 222, 128, 0.12); color: var(--ok);    border: 1px solid rgba(74, 222, 128, 0.4); }
+.crc-fail  { background: rgba(248, 113, 113, 0.12); color: var(--error); border: 1px solid rgba(248, 113, 113, 0.4); }
+
 /* ===== Utility ===== */
 .hidden { display: none !important; }

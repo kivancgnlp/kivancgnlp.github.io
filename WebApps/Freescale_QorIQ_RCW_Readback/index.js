@@ -67,7 +67,12 @@ document.getElementById("parse-btn").addEventListener("click", async () => {
   const processor = document.getElementById("processor-select").value;
 
   try {
-    const HEAD = 72;
+    const MIN_SIZE = 72;
+    const HEAD = 4096; // enough for any PBL image; large flash files are still not fully loaded
+    if (selectedFile.size < MIN_SIZE) {
+      showError(`File too small (${selectedFile.size} bytes). A valid PBL binary must be at least ${MIN_SIZE} bytes — 4-byte preamble + 4-byte destination address + 64-byte RCW payload.`);
+      return;
+    }
     const slice = selectedFile.size > HEAD ? selectedFile.slice(0, HEAD) : selectedFile;
     const buffer = await slice.arrayBuffer();
     const bytes = new Uint8Array(buffer);
@@ -91,6 +96,21 @@ document.getElementById("parse-btn").addEventListener("click", async () => {
 function renderResults(result, filename) {
   document.getElementById("results-processor").textContent = result.processor;
   document.getElementById("results-filename").textContent = filename;
+
+  const crcEl = document.getElementById("results-crc");
+  if (result.crc_ok === null || result.crc_ok === undefined) {
+    crcEl.textContent = "No CRC";
+    crcEl.className = "crc-badge crc-none";
+    crcEl.title = "No PBL end command with CRC found in file";
+  } else if (result.crc_ok) {
+    crcEl.textContent = "CRC OK";
+    crcEl.className = "crc-badge crc-ok";
+    crcEl.title = `Stored: ${result.crc_stored}  Computed: ${result.crc_computed}`;
+  } else {
+    crcEl.textContent = "CRC FAIL";
+    crcEl.className = "crc-badge crc-fail";
+    crcEl.title = `Stored: ${result.crc_stored}  Computed: ${result.crc_computed}`;
+  }
 
   const tbody = document.getElementById("fields-body");
   tbody.innerHTML = "";
