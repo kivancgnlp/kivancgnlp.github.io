@@ -91,6 +91,21 @@ select {
 
 select:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
 
+/* ===== SYSCLK number input ===== */
+input[type="number"] {
+  background: var(--surface-alt);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 0.5rem 0.75rem;
+  font-size: 0.95rem;
+  width: 120px;
+  font-family: var(--font-mono);
+}
+
+input[type="number"]:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
+input[type="number"]::-webkit-inner-spin-button { opacity: 0.4; }
+
 /* ===== File drop zone ===== */
 .file-drop-zone {
   position: relative;
@@ -253,6 +268,91 @@ td:nth-child(5) { }
   padding: 0.05rem 0.35rem;
   color: var(--warn);
   white-space: nowrap;
+}
+
+/* ===== Derived Frequencies ===== */
+#frequencies { margin-top: 2rem; }
+
+.freq-groups {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 1rem;
+  margin-top: 1rem;
+}
+
+.freq-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 1rem 1.25rem;
+}
+
+.freq-card h3 {
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-muted);
+  margin-bottom: 0.75rem;
+}
+
+.freq-table { width: 100%; border-collapse: collapse; }
+
+.freq-table tr + tr td { padding-top: 0.45rem; }
+
+.freq-label {
+  font-size: 0.85rem;
+  color: var(--text);
+  white-space: nowrap;
+  padding-right: 0.75rem;
+}
+
+.freq-note {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  padding-right: 0.75rem;
+}
+
+.freq-value {
+  font-family: var(--font-mono);
+  font-size: 0.9rem;
+  color: var(--ok);
+  font-weight: 600;
+  text-align: right;
+  white-space: nowrap;
+}
+
+.freq-empty {
+  color: var(--text-muted);
+  font-size: 0.9rem;
+  margin-top: 0.5rem;
+}
+
+/* ===== Frequency limit indicators ===== */
+.freq-out { color: var(--error) !important; }
+
+.freq-limit-badge {
+  display: inline-block;
+  font-size: 0.65rem;
+  font-weight: 700;
+  border-radius: 3px;
+  padding: 0.05rem 0.3rem;
+  margin-left: 0.4rem;
+  vertical-align: middle;
+  line-height: 1.4;
+}
+
+.freq-over-badge {
+  background: rgba(248, 113, 113, 0.15);
+  border: 1px solid rgba(248, 113, 113, 0.5);
+  color: var(--error);
+}
+
+.freq-under-badge {
+  background: rgba(248, 113, 113, 0.15);
+  border: 1px solid rgba(248, 113, 113, 0.5);
+  color: var(--error);
 }
 
 /* ===== Utility ===== */
