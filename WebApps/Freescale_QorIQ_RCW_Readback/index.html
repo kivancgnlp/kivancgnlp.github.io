@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>QorIQ RCW Reader</title>
+  <link rel="stylesheet" href="style.css"/>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>QorIQ RCW Reader</h1>
+      <p class="subtitle">Reset Configuration Word parser for NXP QorIQ processors</p>
+    </header>
+
+    <section class="controls">
+      <div class="control-group">
+        <label for="processor-select">Processor</label>
+        <select id="processor-select">
+          <!-- Populated by JS from list_processors() -->
+        </select>
+      </div>
+
+      <div class="control-group">
+        <label for="file-input">PBL Binary File</label>
+        <div class="file-drop-zone" id="drop-zone">
+          <input type="file" id="file-input" accept=".bin"/>
+          <span class="drop-hint">Drop .bin file here or <label for="file-input" class="browse-link">browse</label></span>
+        </div>
+      </div>
+
+      <button id="parse-btn" disabled>Parse RCW</button>
+    </section>
+
+    <section id="error-banner" class="error-banner hidden"></section>
+
+    <section id="results" class="hidden">
+      <div class="results-header">
+        <h2>RCW Fields — <span id="results-processor"></span></h2>
+        <span id="results-filename" class="filename-tag"></span>
+      </div>
+      <div class="table-wrapper">
+        <table id="fields-table">
+          <thead>
+            <tr>
+              <th>Field</th>
+              <th>Description</th>
+              <th>Bits</th>
+              <th>Raw Value</th>
+              <th>Meaning</th>
+            </tr>
+          </thead>
+          <tbody id="fields-body"></tbody>
+        </table>
+      </div>
+    </section>
+  </div>
+
+  <script type="module" src="index.js"></script>
+</body>
+</html>
