@@ -368,5 +368,41 @@ td:nth-child(5) { }
 .crc-ok    { background: rgba(74, 222, 128, 0.12); color: var(--ok);    border: 1px solid rgba(74, 222, 128, 0.4); }
 .crc-fail  { background: rgba(248, 113, 113, 0.12); color: var(--error); border: 1px solid rgba(248, 113, 113, 0.4); }
 
+/* ===== Observed Issues ===== */
+#issues { margin-top: 2rem; }
+
+.issues-list {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+}
+
+.issue-item {
+  padding: 0.55rem 1rem;
+  border-radius: var(--radius);
+  font-size: 0.88rem;
+  border-left: 3px solid transparent;
+}
+
+.issue-error {
+  background: rgba(248, 113, 113, 0.08);
+  border-left-color: var(--error);
+  color: var(--error);
+}
+
+.issue-warn {
+  background: rgba(245, 158, 11, 0.08);
+  border-left-color: var(--warn);
+  color: var(--warn);
+}
+
+.issues-none {
+  color: var(--ok);
+  font-size: 0.9rem;
+  margin-top: 0.5rem;
+}
+
 /* ===== Utility ===== */
 .hidden { display: none !important; }

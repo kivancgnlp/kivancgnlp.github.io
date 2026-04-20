@@ -39,6 +39,14 @@
 
     <section id="error-banner" class="error-banner hidden"></section>
 
+    <section id="frequencies" class="hidden">
+      <div class="results-header">
+        <h2>Derived Frequencies</h2>
+        <span class="filename-tag" id="freq-sysclk-label"></span>
+      </div>
+      <div class="freq-groups" id="freq-groups"></div>
+    </section>
+
     <section id="results" class="hidden">
       <div class="results-header">
         <h2>RCW Fields — <span id="results-processor"></span></h2>
@@ -61,12 +69,12 @@
       </div>
     </section>
 
-    <section id="frequencies" class="hidden">
+    <section id="issues" class="hidden">
       <div class="results-header">
-        <h2>Derived Frequencies</h2>
-        <span class="filename-tag" id="freq-sysclk-label"></span>
+        <h2>Observed Issues</h2>
       </div>
-      <div class="freq-groups" id="freq-groups"></div>
+      <ul id="issues-list" class="issues-list"></ul>
+      <p id="issues-none" class="issues-none hidden">No issues detected.</p>
     </section>
   </div>
 

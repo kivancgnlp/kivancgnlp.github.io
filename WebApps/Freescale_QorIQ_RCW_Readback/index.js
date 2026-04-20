@@ -53,7 +53,10 @@ dropZone.addEventListener("drop", (e) => {
 // ── SYSCLK live recalculation ────────────────────────────────────────────────
 
 document.getElementById("sysclk-input").addEventListener("input", () => {
-  if (lastParseResult) renderFrequencies(lastParseResult);
+  if (lastParseResult) {
+    renderFrequencies(lastParseResult);
+    renderIssues(lastParseResult);
+  }
 });
 
 // ── Parse ────────────────────────────────────────────────────────────────────
@@ -84,8 +87,9 @@ document.getElementById("parse-btn").addEventListener("click", async () => {
     }
 
     lastParseResult = JSON.parse(resultStr);
-    renderResults(lastParseResult, selectedFile.name);
     renderFrequencies(lastParseResult);
+    renderResults(lastParseResult, selectedFile.name);
+    renderIssues(lastParseResult);
   } catch (err) {
     showError(`Unexpected error: ${err.message}`);
   }
@@ -394,6 +398,62 @@ function renderFrequencies(result) {
   document.getElementById("frequencies").classList.remove("hidden");
 }
 
+// ── Observed Issues ──────────────────────────────────────────────────────────
+
+function renderIssues(result) {
+  const issues = [];
+
+  if (result.crc_ok === false) {
+    issues.push({
+      severity: "error",
+      text: `PBL CRC check failed — stored ${result.crc_stored}, computed ${result.crc_computed}`,
+    });
+  }
+
+  result.fields.forEach((f) => {
+    if (f.meaning === null || f.meaning === undefined) {
+      issues.push({
+        severity: "warn",
+        text: `Unknown value for field ${f.name} (${f.raw_hex}) — not defined in processor config`,
+      });
+    }
+  });
+
+  const sysclk = getSysclk();
+  const groups = calcFreqs(result, sysclk);
+  groups.forEach((g) => {
+    g.rows.forEach((row) => {
+      const status = checkLimit(row);
+      if (status === "over") {
+        issues.push({ severity: "error", text: `${row.label} (${row.value}) exceeds maximum of ${row.limit.max} MHz` });
+      } else if (status === "under") {
+        issues.push({ severity: "error", text: `${row.label} (${row.value}) is below minimum of ${row.limit.min} MHz` });
+      }
+    });
+  });
+
+  const section = document.getElementById("issues");
+  const list    = document.getElementById("issues-list");
+  const none    = document.getElementById("issues-none");
+
+  list.innerHTML = "";
+  if (issues.length === 0) {
+    none.classList.remove("hidden");
+    list.classList.add("hidden");
+  } else {
+    none.classList.add("hidden");
+    list.classList.remove("hidden");
+    issues.forEach((issue) => {
+      const li = document.createElement("li");
+      li.className = `issue-item issue-${issue.severity}`;
+      li.textContent = issue.text;
+      list.appendChild(li);
+    });
+  }
+
+  section.classList.remove("hidden");
+}
+
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
 function showError(msg) {
@@ -411,6 +471,7 @@ function clearError() {
 function hideResults() {
   document.getElementById("results").classList.add("hidden");
   document.getElementById("frequencies").classList.add("hidden");
+  document.getElementById("issues").classList.add("hidden");
   lastParseResult = null;
 }
 
