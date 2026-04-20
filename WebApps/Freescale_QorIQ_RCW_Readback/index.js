@@ -16,6 +16,7 @@ async function bootstrap() {
     const opt = document.createElement("option");
     opt.value = p;
     opt.textContent = p;
+    if (p === "P3041") opt.selected = true;
     select.appendChild(opt);
   });
 
