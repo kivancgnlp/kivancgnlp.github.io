@@ -1,4 +1,4 @@
-import init, { list_processors, parse_rcw } from "./pkg/rcw_reader.js";
+import init, { get_version, list_processors, parse_rcw } from "./pkg/rcw_reader.js";
 
 let wasmReady = false;
 let selectedFile = null;
@@ -7,6 +7,8 @@ let lastParseResult = null;   // cached so SYSCLK changes recalculate instantly
 async function bootstrap() {
   await init();
   wasmReady = true;
+
+  document.getElementById("app-version").textContent = `v${get_version()}`;
 
   const processors = JSON.parse(list_processors());
   const select = document.getElementById("processor-select");
@@ -176,7 +178,7 @@ function fmtMTs(mts) {
   return `${+mts.toFixed(3).replace(/\.?0+$/, "")} MT/s`;
 }
 
-// PLL select encoding → { pll: 'CC1'|'CC2'|'CGA1'|'CGA2', div: 1|2|4 }
+// PLL select encoding → { pll: string, div: number }
 const PLL_SEL_P3041 = {
   0: { pll: "CC1", div: 1 }, 1: { pll: "CC1", div: 2 }, 2: { pll: "CC1", div: 4 },
   4: { pll: "CC2", div: 1 }, 5: { pll: "CC2", div: 2 }, 6: { pll: "CC2", div: 4 },
@@ -184,6 +186,20 @@ const PLL_SEL_P3041 = {
 const PLL_SEL_T2080 = {
   0: { pll: "CGA1", div: 1 }, 1: { pll: "CGA1", div: 2 }, 2: { pll: "CGA1", div: 4 },
   4: { pll: "CGA2", div: 1 }, 5: { pll: "CGA2", div: 2 }, 6: { pll: "CGA2", div: 4 },
+};
+// P4080/P5040: CC1-CC4 (P4080) or CC1-CC3 (P5040)
+const PLL_SEL_CC4 = {
+  0:  { pll: "CC1", div: 1 }, 1:  { pll: "CC1", div: 2 }, 2:  { pll: "CC1", div: 4 },
+  4:  { pll: "CC2", div: 1 }, 5:  { pll: "CC2", div: 2 }, 6:  { pll: "CC2", div: 4 },
+  8:  { pll: "CC3", div: 1 }, 9:  { pll: "CC3", div: 2 }, 10: { pll: "CC3", div: 4 },
+  12: { pll: "CC4", div: 1 }, 13: { pll: "CC4", div: 2 }, 14: { pll: "CC4", div: 4 },
+};
+// T4240: CGA_PLL1/2/3 + CGB_PLL1/2
+const PLL_SEL_T4240_CGA = {
+  0:  { pll: "CGA1", div: 1 }, 1:  { pll: "CGA1", div: 2 }, 2:  { pll: "CGA1", div: 4 },
+  4:  { pll: "CGA2", div: 1 }, 5:  { pll: "CGA2", div: 2 }, 6:  { pll: "CGA2", div: 4 },
+  8:  { pll: "CGA3", div: 1 }, 9:  { pll: "CGA3", div: 2 }, 10: { pll: "CGA3", div: 4 },
+  12: { pll: "PLAT", div: 1 },
 };
 
 /** Returns 'over' | 'under' | 'ok' | null (no limit defined). */
@@ -352,6 +368,394 @@ function calcFreqs(result, sysclk) {
     if (m2Entry) {
       fmGroup.rows.push({ label: "eSDHC SDR clock", note: m2Entry.n, value: fmtMHz(m2Entry.v) });
     }
+    if (fmGroup.rows.length) groups.push(fmGroup);
+
+  } else if (processor === "P2041") {
+    // P2041: CC1/CC2 PLLs, C0-C3
+    const sysGroup = { title: "System", rows: [] };
+    const sysPllRat = fv("SYS_PLL_RAT");
+    let platClk = null;
+    if (sysPllRat) {
+      platClk = sysclk * sysPllRat;
+      sysGroup.rows.push({ label: "Platform clock", note: `SYSCLK × ${sysPllRat}`, value: fmtMHz(platClk) });
+    }
+    if (sysGroup.rows.length) groups.push(sysGroup);
+
+    const pllGroup = { title: "Core Cluster PLLs", rows: [] };
+    let cc1 = null, cc2 = null;
+    const cc1Rat = fv("CC1_PLL_RAT");
+    if (cc1Rat) { cc1 = sysclk * cc1Rat; pllGroup.rows.push({ label: "CC1 PLL", note: `SYSCLK × ${cc1Rat}`, value: fmtMHz(cc1) }); }
+    const cc2Rat = fv("CC2_PLL_RAT");
+    if (cc2Rat) { cc2 = sysclk * cc2Rat; pllGroup.rows.push({ label: "CC2 PLL", note: `SYSCLK × ${cc2Rat}`, value: fmtMHz(cc2) }); }
+    if (pllGroup.rows.length) groups.push(pllGroup);
+
+    const coreGroup = { title: "Core Frequencies", rows: [] };
+    const pllMap = { CC1: cc1, CC2: cc2 };
+    ["C0","C1","C2","C3"].forEach((core, i) => {
+      const sel = fv(`C${i}_PLL_SEL`);
+      const entry = PLL_SEL_P3041[sel];
+      if (entry && pllMap[entry.pll] != null) {
+        const freq = pllMap[entry.pll] / entry.div;
+        coreGroup.rows.push({ label: `Core ${i}`, note: `${entry.pll} / ${entry.div}`, value: fmtMHz(freq) });
+      }
+    });
+    if (coreGroup.rows.length) groups.push(coreGroup);
+
+    const memGroup = { title: "Memory (DDR)", rows: [] };
+    const memRat = fv("MEM_PLL_RAT");
+    const ddrSync = fv("DDR_SYNC");
+    if (memRat) {
+      const refClk = (ddrSync === 1 && platClk) ? platClk : sysclk;
+      const ddrClk = refClk * memRat;
+      memGroup.rows.push({ label: "DDR clock",     note: `${ddrSync === 1 ? "Platform clock" : "SYSCLK"} × ${memRat}`, value: fmtMHz(ddrClk) });
+      memGroup.rows.push({ label: "DDR data rate", note: "DDR clock × 2", value: fmtMTs(ddrClk * 2) });
+    }
+    if (memGroup.rows.length) groups.push(memGroup);
+
+    const fmGroup2 = { title: "Frame Manager", rows: [] };
+    const fmSel2 = fv("FM_CLK_SEL");
+    if (fmSel2 === 0 && platClk) fmGroup2.rows.push({ label: "FM clock", note: "Platform clock / 2", value: fmtMHz(platClk / 2) });
+    else if (fmSel2 === 1 && cc2)  fmGroup2.rows.push({ label: "FM clock", note: "CC2 PLL / 2", value: fmtMHz(cc2 / 2) });
+    if (fmGroup2.rows.length) groups.push(fmGroup2);
+
+  } else if (processor === "T1040" || processor === "T1042") {
+    // T1040: CGA_PLL1/PLL2, C1-C4 (1-indexed)
+    const sysGroup = { title: "System", rows: [] };
+    const sysPllRat = fv("SYS_PLL_RAT");
+    let platClk = null;
+    if (sysPllRat) {
+      platClk = sysclk * sysPllRat;
+      sysGroup.rows.push({ label: "Platform clock", note: `SYSCLK × ${sysPllRat}`, value: fmtMHz(platClk) });
+    }
+    if (sysGroup.rows.length) groups.push(sysGroup);
+
+    const pllGroup = { title: "Cluster Group A PLLs", rows: [] };
+    let cga1 = null, cga2 = null;
+    const cga1Rat = fv("CGA_PLL1_RAT");
+    if (cga1Rat) { cga1 = sysclk * cga1Rat; pllGroup.rows.push({ label: "CGA PLL1", note: `SYSCLK × ${cga1Rat}`, value: fmtMHz(cga1) }); }
+    const cga2Rat = fv("CGA_PLL2_RAT");
+    if (cga2Rat) { cga2 = sysclk * cga2Rat; pllGroup.rows.push({ label: "CGA PLL2", note: `SYSCLK × ${cga2Rat}`, value: fmtMHz(cga2) }); }
+    if (pllGroup.rows.length) groups.push(pllGroup);
+
+    const coreGroup = { title: "Core Frequencies", rows: [] };
+    const pllMap = { CGA1: cga1, CGA2: cga2 };
+    [1,2,3,4].forEach(i => {
+      const sel = fv(`C${i}_PLL_SEL`);
+      const entry = PLL_SEL_T2080[sel];
+      if (entry && pllMap[entry.pll] != null) {
+        const freq = pllMap[entry.pll] / entry.div;
+        coreGroup.rows.push({ label: `Core ${i}`, note: `${entry.pll} / ${entry.div}`, value: fmtMHz(freq) });
+      }
+    });
+    if (coreGroup.rows.length) groups.push(coreGroup);
+
+    const memGroup = { title: "Memory (DDR)", rows: [] };
+    const memRat = fv("MEM_PLL_RAT");
+    const ddrRefSel = fv("DDR_REFCLK_SEL");
+    const ddrFbMult = fv("DDR_FDBK_MULT");
+    if (memRat) {
+      const refClk = (ddrRefSel === 1) ? sysclk : sysclk; // external pin — can't calculate, use SYSCLK as approximation
+      const mult = (ddrFbMult === 2) ? 2 : (ddrFbMult === 3) ? 3 : 1;
+      const ddrClk = refClk * mult * memRat;
+      memGroup.rows.push({ label: "DDR clock",     note: `SYSCLK × ${mult > 1 ? mult + "×" : ""}${memRat}`, value: fmtMHz(ddrClk) });
+      memGroup.rows.push({ label: "DDR data rate", note: "DDR clock × 2", value: fmtMTs(ddrClk * 2) });
+    }
+    if (memGroup.rows.length) groups.push(memGroup);
+
+    const fmGroup = { title: "Frame Manager", rows: [] };
+    const fmSel = fv("HWA_CGA_M1_CLK_SEL");
+    const fmCalcT1040 = {
+      1: cga1 ? { v: cga1 / 1, n: "CGA PLL1 / 1" } : null,
+      2: cga1 ? { v: cga1 / 2, n: "CGA PLL1 / 2" } : null,
+      3: cga1 ? { v: cga1 / 3, n: "CGA PLL1 / 3" } : null,
+      4: cga1 ? { v: cga1 / 4, n: "CGA PLL1 / 4" } : null,
+      5: platClk ? { v: platClk,  n: "Platform clock"  } : null,
+      6: cga2 ? { v: cga2 / 2, n: "CGA PLL2 / 2" } : null,
+      7: cga2 ? { v: cga2 / 3, n: "CGA PLL2 / 3" } : null,
+    };
+    const fmEntry = fmSel !== null ? fmCalcT1040[fmSel] : null;
+    if (fmEntry) fmGroup.rows.push({ label: "FM clock", note: fmEntry.n, value: fmtMHz(fmEntry.v) });
+    if (fmGroup.rows.length) groups.push(fmGroup);
+
+  } else if (processor === "T1024" || processor === "T1023") {
+    // T1024: single CGA_PLL1, C1-C2 only
+    const sysGroup = { title: "System", rows: [] };
+    const sysPllRat = fv("SYS_PLL_RAT");
+    let platClk = null;
+    if (sysPllRat) {
+      platClk = sysclk * sysPllRat;
+      sysGroup.rows.push({ label: "Platform clock", note: `SYSCLK × ${sysPllRat}`, value: fmtMHz(platClk) });
+    }
+    if (sysGroup.rows.length) groups.push(sysGroup);
+
+    const pllGroup = { title: "Cluster Group A PLL", rows: [] };
+    let cga1 = null;
+    const cga1Rat = fv("CGA_PLL1_RAT");
+    if (cga1Rat) { cga1 = sysclk * cga1Rat; pllGroup.rows.push({ label: "CGA PLL1", note: `SYSCLK × ${cga1Rat}`, value: fmtMHz(cga1) }); }
+    if (pllGroup.rows.length) groups.push(pllGroup);
+
+    const coreGroup = { title: "Core Frequencies", rows: [] };
+    const PLL_SEL_T1024 = {
+      0: { pll: "CGA1", div: 1 }, 1: { pll: "CGA1", div: 2 }, 2: { pll: "CGA1", div: 4 },
+      8: { pll: "PLAT", div: 1 },
+    };
+    const pllMap = { CGA1: cga1, PLAT: platClk };
+    [1,2].forEach(i => {
+      const sel = fv(`C${i}_PLL_SEL`);
+      const entry = PLL_SEL_T1024[sel];
+      if (entry && pllMap[entry.pll] != null) {
+        const freq = pllMap[entry.pll] / entry.div;
+        coreGroup.rows.push({ label: `Core ${i}`, note: `${entry.pll} / ${entry.div}`, value: fmtMHz(freq) });
+      }
+    });
+    if (coreGroup.rows.length) groups.push(coreGroup);
+
+    const memGroup = { title: "Memory (DDR)", rows: [] };
+    const memRat = fv("MEM_PLL_RAT");
+    if (memRat) {
+      const ddrClk = sysclk * memRat;
+      memGroup.rows.push({ label: "DDR clock",     note: `SYSCLK × ${memRat}`, value: fmtMHz(ddrClk) });
+      memGroup.rows.push({ label: "DDR data rate", note: "DDR clock × 2",       value: fmtMTs(ddrClk * 2) });
+    }
+    if (memGroup.rows.length) groups.push(memGroup);
+
+    const fmGroup = { title: "Frame Manager / eSDHC", rows: [] };
+    const fmSel = fv("HWA_CGA_M1_CLK_SEL");
+    const fmCalcT1024 = {
+      1: cga1   ? { v: cga1   / 1, n: "CGA PLL1 / 1" } : null,
+      2: cga1   ? { v: cga1   / 2, n: "CGA PLL1 / 2" } : null,
+      3: cga1   ? { v: cga1   / 3, n: "CGA PLL1 / 3" } : null,
+      4: cga1   ? { v: cga1   / 4, n: "CGA PLL1 / 4" } : null,
+      5: platClk ? { v: platClk,   n: "Platform clock" } : null,
+    };
+    const fmEntry = fmSel !== null ? fmCalcT1024[fmSel] : null;
+    if (fmEntry) fmGroup.rows.push({ label: "FM1 clock", note: fmEntry.n, value: fmtMHz(fmEntry.v) });
+    const m2Sel = fv("HWA_CGA_M2_CLK_SEL");
+    if (m2Sel !== null && fmCalcT1024[m2Sel]) {
+      fmGroup.rows.push({ label: "eSDHC clock", note: fmCalcT1024[m2Sel].n, value: fmtMHz(fmCalcT1024[m2Sel].v) });
+    }
+    if (fmGroup.rows.length) groups.push(fmGroup);
+
+  } else if (processor === "T4240" || processor === "T4160") {
+    // T4240: CGA_PLL1-3 + CGB_PLL1-2
+    const sysGroup = { title: "System", rows: [] };
+    const sysPllRat = fv("SYS_PLL_RAT");
+    let platClk = null;
+    if (sysPllRat) {
+      platClk = sysclk * sysPllRat;
+      sysGroup.rows.push({ label: "Platform clock", note: `SYSCLK × ${sysPllRat}`, value: fmtMHz(platClk) });
+    }
+    if (sysGroup.rows.length) groups.push(sysGroup);
+
+    const cgaGroup = { title: "Cluster Group A PLLs", rows: [] };
+    let cga1 = null, cga2 = null, cga3 = null;
+    const c1r = fv("CGA_PLL1_RAT"); if (c1r) { cga1 = sysclk * c1r; cgaGroup.rows.push({ label: "CGA PLL1", note: `SYSCLK × ${c1r}`, value: fmtMHz(cga1) }); }
+    const c2r = fv("CGA_PLL2_RAT"); if (c2r) { cga2 = sysclk * c2r; cgaGroup.rows.push({ label: "CGA PLL2", note: `SYSCLK × ${c2r}`, value: fmtMHz(cga2) }); }
+    const c3r = fv("CGA_PLL3_RAT"); if (c3r) { cga3 = sysclk * c3r; cgaGroup.rows.push({ label: "CGA PLL3", note: `SYSCLK × ${c3r}`, value: fmtMHz(cga3) }); }
+    if (cgaGroup.rows.length) groups.push(cgaGroup);
+
+    const cgbGroup = { title: "Cluster Group B PLLs", rows: [] };
+    let cgb1 = null, cgb2 = null;
+    const d1r = fv("CGB_PLL1_RAT"); if (d1r) { cgb1 = sysclk * d1r; cgbGroup.rows.push({ label: "CGB PLL1", note: `SYSCLK × ${d1r}`, value: fmtMHz(cgb1) }); }
+    const d2r = fv("CGB_PLL2_RAT"); if (d2r) { cgb2 = sysclk * d2r; cgbGroup.rows.push({ label: "CGB PLL2", note: `SYSCLK × ${d2r}`, value: fmtMHz(cgb2) }); }
+    if (cgbGroup.rows.length) groups.push(cgbGroup);
+
+    const coreGroup = { title: "Core Frequencies (CGA)", rows: [] };
+    const cgaPllMap = { CGA1: cga1, CGA2: cga2, CGA3: cga3, PLAT: platClk };
+    [1,2,3].forEach(i => {
+      const sel = fv(`C${i}_PLL_SEL`);
+      const entry = PLL_SEL_T4240_CGA[sel];
+      if (entry && cgaPllMap[entry.pll] != null) {
+        const freq = cgaPllMap[entry.pll] / entry.div;
+        coreGroup.rows.push({ label: `Core ${i}`, note: `${entry.pll} / ${entry.div}`, value: fmtMHz(freq) });
+      }
+    });
+    if (coreGroup.rows.length) groups.push(coreGroup);
+
+    const memGroup = { title: "Memory (DDR)", rows: [] };
+    const memRat = fv("MEM_PLL_RAT");
+    if (memRat) {
+      const ddrClk = sysclk * memRat;
+      memGroup.rows.push({ label: "DDR clock",     note: `SYSCLK × ${memRat}`, value: fmtMHz(ddrClk) });
+      memGroup.rows.push({ label: "DDR data rate", note: "DDR clock × 2",       value: fmtMTs(ddrClk * 2) });
+    }
+    if (memGroup.rows.length) groups.push(memGroup);
+
+    const fmGroup = { title: "Frame Manager / Accelerators", rows: [] };
+    const buildCgaCalc = (p1, p2) => ({
+      1: p1 ? { v: p1/1, n: "CGA PLL1 / 1" } : null, 2: p1 ? { v: p1/2, n: "CGA PLL1 / 2" } : null,
+      3: p1 ? { v: p1/3, n: "CGA PLL1 / 3" } : null, 4: p1 ? { v: p1/4, n: "CGA PLL1 / 4" } : null,
+      5: platClk ? { v: platClk, n: "Platform clock" } : null,
+      6: p2 ? { v: p2/2, n: "CGA PLL2 / 2" } : null, 7: p2 ? { v: p2/3, n: "CGA PLL2 / 3" } : null,
+    });
+    const buildCgbCalc = (p1, p2) => ({
+      1: p1 ? { v: p1/1, n: "CGB PLL1 / 1" } : null, 2: p1 ? { v: p1/2, n: "CGB PLL1 / 2" } : null,
+      3: p1 ? { v: p1/3, n: "CGB PLL1 / 3" } : null, 4: p1 ? { v: p1/4, n: "CGB PLL1 / 4" } : null,
+      5: platClk ? { v: platClk, n: "Platform clock" } : null,
+      6: p2 ? { v: p2/2, n: "CGB PLL2 / 2" } : null, 7: p2 ? { v: p2/3, n: "CGB PLL2 / 3" } : null,
+    });
+    const cgaCalc = buildCgaCalc(cga1, cga2);
+    const cgbCalc = buildCgbCalc(cgb1, cgb2);
+    const m1Sel = fv("HWA_CGA_M1_CLK_SEL"); const m1e = m1Sel !== null ? cgaCalc[m1Sel] : null;
+    if (m1e) fmGroup.rows.push({ label: "FM1 / CGA HWA clock", note: m1e.n, value: fmtMHz(m1e.v) });
+    const cb1Sel = fv("HWA_CGB_M1_CLK_SEL"); const cb1e = cb1Sel !== null ? cgbCalc[cb1Sel] : null;
+    if (cb1e) fmGroup.rows.push({ label: "CGB HWA M1 clock", note: cb1e.n, value: fmtMHz(cb1e.v) });
+    const cb2Sel = fv("HWA_CGB_M2_CLK_SEL"); const cb2e = cb2Sel !== null ? cgbCalc[cb2Sel] : null;
+    if (cb2e) fmGroup.rows.push({ label: "CGB HWA M2 clock", note: cb2e.n, value: fmtMHz(cb2e.v) });
+    if (fmGroup.rows.length) groups.push(fmGroup);
+
+  } else if (processor === "P4080") {
+    // P4080: CC1-CC4, C0-C7
+    const sysGroup = { title: "System", rows: [] };
+    const sysPllRat = fv("SYS_PLL_RAT");
+    let platClk = null;
+    if (sysPllRat) {
+      platClk = sysclk * sysPllRat;
+      sysGroup.rows.push({ label: "Platform clock", note: `SYSCLK × ${sysPllRat}`, value: fmtMHz(platClk) });
+    }
+    if (sysGroup.rows.length) groups.push(sysGroup);
+
+    const pllGroup = { title: "Core Cluster PLLs", rows: [] };
+    const ccFreqs = { CC1: null, CC2: null, CC3: null, CC4: null };
+    [1,2,3,4].forEach(n => {
+      const rat = fv(`CC${n}_PLL_RAT`);
+      if (rat) {
+        ccFreqs[`CC${n}`] = sysclk * rat;
+        pllGroup.rows.push({ label: `CC${n} PLL`, note: `SYSCLK × ${rat}`, value: fmtMHz(ccFreqs[`CC${n}`]) });
+      }
+    });
+    if (pllGroup.rows.length) groups.push(pllGroup);
+
+    const coreGroup = { title: "Core Frequencies", rows: [] };
+    for (let i = 0; i <= 7; i++) {
+      const sel = fv(`C${i}_PLL_SEL`);
+      const entry = PLL_SEL_CC4[sel];
+      if (entry && ccFreqs[entry.pll] != null) {
+        const freq = ccFreqs[entry.pll] / entry.div;
+        coreGroup.rows.push({ label: `Core ${i}`, note: `${entry.pll} / ${entry.div}`, value: fmtMHz(freq) });
+      }
+    }
+    if (coreGroup.rows.length) groups.push(coreGroup);
+
+    const memGroup = { title: "Memory (DDR)", rows: [] };
+    const memRat = fv("MEM_PLL_RAT");
+    const ddrSync = fv("DDR_SYNC");
+    if (memRat) {
+      const refClk = (ddrSync === 1 && platClk) ? platClk : sysclk;
+      const ddrClk = refClk * memRat;
+      memGroup.rows.push({ label: "DDR clock",     note: `${ddrSync === 1 ? "Platform clock" : "SYSCLK"} × ${memRat}`, value: fmtMHz(ddrClk) });
+      memGroup.rows.push({ label: "DDR data rate", note: "DDR clock × 2", value: fmtMTs(ddrClk * 2) });
+    }
+    if (memGroup.rows.length) groups.push(memGroup);
+
+    const fmGroup = { title: "Frame Manager", rows: [] };
+    const fm1Sel = fv("FM1_CLK_SEL");
+    if (fm1Sel === 0 && platClk) fmGroup.rows.push({ label: "FM1 clock", note: "Platform clock / 2", value: fmtMHz(platClk / 2) });
+    else if (fm1Sel === 1 && ccFreqs.CC3) fmGroup.rows.push({ label: "FM1 clock", note: "CC3 PLL / 2", value: fmtMHz(ccFreqs.CC3 / 2) });
+    const fm2Sel = fv("FM2_CLK_SEL");
+    if (fm2Sel === 0 && platClk) fmGroup.rows.push({ label: "FM2 clock", note: "Platform clock / 2", value: fmtMHz(platClk / 2) });
+    else if (fm2Sel === 1 && ccFreqs.CC4) fmGroup.rows.push({ label: "FM2 clock", note: "CC4 PLL / 2", value: fmtMHz(ccFreqs.CC4 / 2) });
+    if (fmGroup.rows.length) groups.push(fmGroup);
+
+  } else if (processor === "P5020" || processor === "P5010") {
+    // P5020: CC1-CC2, C0-C1
+    const sysGroup = { title: "System", rows: [] };
+    const sysPllRat = fv("SYS_PLL_RAT");
+    let platClk = null;
+    if (sysPllRat) {
+      platClk = sysclk * sysPllRat;
+      sysGroup.rows.push({ label: "Platform clock", note: `SYSCLK × ${sysPllRat}`, value: fmtMHz(platClk) });
+    }
+    if (sysGroup.rows.length) groups.push(sysGroup);
+
+    const pllGroup = { title: "Core Cluster PLLs", rows: [] };
+    let cc1 = null, cc2 = null;
+    const cc1Rat = fv("CC1_PLL_RAT"); if (cc1Rat) { cc1 = sysclk * cc1Rat; pllGroup.rows.push({ label: "CC1 PLL", note: `SYSCLK × ${cc1Rat}`, value: fmtMHz(cc1) }); }
+    const cc2Rat = fv("CC2_PLL_RAT"); if (cc2Rat) { cc2 = sysclk * cc2Rat; pllGroup.rows.push({ label: "CC2 PLL", note: `SYSCLK × ${cc2Rat}`, value: fmtMHz(cc2) }); }
+    if (pllGroup.rows.length) groups.push(pllGroup);
+
+    const coreGroup = { title: "Core Frequencies", rows: [] };
+    const pllMap = { CC1: cc1, CC2: cc2 };
+    [0,1].forEach(i => {
+      const sel = fv(`C${i}_PLL_SEL`);
+      const entry = PLL_SEL_P3041[sel];
+      if (entry && pllMap[entry.pll] != null) {
+        const freq = pllMap[entry.pll] / entry.div;
+        coreGroup.rows.push({ label: `Core ${i}`, note: `${entry.pll} / ${entry.div}`, value: fmtMHz(freq) });
+      }
+    });
+    if (coreGroup.rows.length) groups.push(coreGroup);
+
+    const memGroup = { title: "Memory (DDR)", rows: [] };
+    const memRat = fv("MEM_PLL_RAT");
+    const ddrSync = fv("DDR_SYNC");
+    if (memRat) {
+      const refClk = (ddrSync === 1 && platClk) ? platClk : sysclk;
+      const ddrClk = refClk * memRat;
+      memGroup.rows.push({ label: "DDR clock",     note: `${ddrSync === 1 ? "Platform clock" : "SYSCLK"} × ${memRat}`, value: fmtMHz(ddrClk) });
+      memGroup.rows.push({ label: "DDR data rate", note: "DDR clock × 2", value: fmtMTs(ddrClk * 2) });
+    }
+    if (memGroup.rows.length) groups.push(memGroup);
+
+    const fmGroup = { title: "Frame Manager", rows: [] };
+    const fmSel = fv("FM_CLK_SEL");
+    if (fmSel === 0 && platClk) fmGroup.rows.push({ label: "FM clock", note: "Platform clock / 2", value: fmtMHz(platClk / 2) });
+    else if (fmSel === 1 && cc2)  fmGroup.rows.push({ label: "FM clock", note: "CC2 PLL / 2", value: fmtMHz(cc2 / 2) });
+    if (fmGroup.rows.length) groups.push(fmGroup);
+
+  } else if (processor === "P5040") {
+    // P5040: CC1-CC3, C0-C3
+    const sysGroup = { title: "System", rows: [] };
+    const sysPllRat = fv("SYS_PLL_RAT");
+    let platClk = null;
+    if (sysPllRat) {
+      platClk = sysclk * sysPllRat;
+      sysGroup.rows.push({ label: "Platform clock", note: `SYSCLK × ${sysPllRat}`, value: fmtMHz(platClk) });
+    }
+    if (sysGroup.rows.length) groups.push(sysGroup);
+
+    const pllGroup = { title: "Core Cluster PLLs", rows: [] };
+    const ccFreqs = { CC1: null, CC2: null, CC3: null };
+    [1,2,3].forEach(n => {
+      const rat = fv(`CC${n}_PLL_RAT`);
+      if (rat) {
+        ccFreqs[`CC${n}`] = sysclk * rat;
+        pllGroup.rows.push({ label: `CC${n} PLL`, note: `SYSCLK × ${rat}`, value: fmtMHz(ccFreqs[`CC${n}`]) });
+      }
+    });
+    if (pllGroup.rows.length) groups.push(pllGroup);
+
+    const coreGroup = { title: "Core Frequencies", rows: [] };
+    const PLL_SEL_CC3 = {
+      0:  { pll: "CC1", div: 1 }, 1:  { pll: "CC1", div: 2 }, 2:  { pll: "CC1", div: 4 },
+      4:  { pll: "CC2", div: 1 }, 5:  { pll: "CC2", div: 2 }, 6:  { pll: "CC2", div: 4 },
+      8:  { pll: "CC3", div: 1 }, 9:  { pll: "CC3", div: 2 }, 10: { pll: "CC3", div: 4 },
+    };
+    for (let i = 0; i <= 3; i++) {
+      const sel = fv(`C${i}_PLL_SEL`);
+      const entry = PLL_SEL_CC3[sel];
+      if (entry && ccFreqs[entry.pll] != null) {
+        const freq = ccFreqs[entry.pll] / entry.div;
+        coreGroup.rows.push({ label: `Core ${i}`, note: `${entry.pll} / ${entry.div}`, value: fmtMHz(freq) });
+      }
+    }
+    if (coreGroup.rows.length) groups.push(coreGroup);
+
+    const memGroup = { title: "Memory (DDR)", rows: [] };
+    const memRat = fv("MEM_PLL_RAT");
+    const ddrSync = fv("DDR_SYNC");
+    if (memRat) {
+      const refClk = (ddrSync === 1 && platClk) ? platClk : sysclk;
+      const ddrClk = refClk * memRat;
+      memGroup.rows.push({ label: "DDR clock",     note: `${ddrSync === 1 ? "Platform clock" : "SYSCLK"} × ${memRat}`, value: fmtMHz(ddrClk) });
+      memGroup.rows.push({ label: "DDR data rate", note: "DDR clock × 2", value: fmtMTs(ddrClk * 2) });
+    }
+    if (memGroup.rows.length) groups.push(memGroup);
+
+    const fmGroup = { title: "Frame Manager", rows: [] };
+    const fmSel = fv("FM_CLK_SEL");
+    if (fmSel === 0 && platClk) fmGroup.rows.push({ label: "FM clock", note: "Platform clock / 2", value: fmtMHz(platClk / 2) });
+    else if (fmSel === 1 && ccFreqs.CC2) fmGroup.rows.push({ label: "FM clock", note: "CC2 PLL / 2", value: fmtMHz(ccFreqs.CC2 / 2) });
     if (fmGroup.rows.length) groups.push(fmGroup);
   }
 

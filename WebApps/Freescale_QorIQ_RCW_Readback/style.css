@@ -467,5 +467,28 @@ td:nth-child(5) { }
 .sd-used   { color: var(--ok); }
 .sd-unused { color: var(--text-muted); }
 
+/* ===== Footer ===== */
+.app-footer {
+  margin-top: 3rem;
+  padding: 1rem 0;
+  text-align: center;
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  border-top: 1px solid var(--border);
+}
+
+.app-footer a {
+  color: var(--text-muted);
+  text-decoration: none;
+}
+
+.app-footer a:hover {
+  color: var(--accent);
+}
+
+.footer-sep {
+  margin: 0 0.5rem;
+}
+
 /* ===== Utility ===== */
 .hidden { display: none !important; }
