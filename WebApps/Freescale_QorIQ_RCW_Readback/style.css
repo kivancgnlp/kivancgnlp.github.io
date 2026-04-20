@@ -404,5 +404,68 @@ td:nth-child(5) { }
   margin-top: 0.5rem;
 }
 
+/* ===== SerDes hover tooltip ===== */
+.serdes-row { cursor: default; }
+.serdes-row:hover td:nth-child(1) { text-decoration: underline dotted var(--accent); }
+
+.serdes-tooltip {
+  position: absolute;
+  z-index: 9999;
+  background: var(--surface);
+  border: 1px solid var(--accent-dim);
+  border-radius: var(--radius);
+  padding: 0.85rem 1rem;
+  max-width: 740px;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.45);
+  pointer-events: none;
+}
+
+.sd-title {
+  font-size: 0.78rem;
+  font-weight: 700;
+  font-family: var(--font-mono);
+  color: var(--accent);
+  margin-bottom: 0.6rem;
+}
+
+.sd-group-label {
+  font-size: 0.7rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-muted);
+  margin-top: 0.65rem;
+  margin-bottom: 0.25rem;
+}
+
+.sd-lane-table {
+  border-collapse: collapse;
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  width: 100%;
+}
+
+.sd-lane-table th {
+  background: var(--surface-alt);
+  color: var(--text-muted);
+  font-size: 0.65rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  padding: 0.2rem 0.35rem;
+  text-align: center;
+  border: 1px solid var(--border);
+  min-width: 56px;
+}
+
+.sd-lane-table td {
+  padding: 0.25rem 0.35rem;
+  text-align: center;
+  border: 1px solid var(--border);
+  white-space: nowrap;
+}
+
+.sd-used   { color: var(--ok); }
+.sd-unused { color: var(--text-muted); }
+
 /* ===== Utility ===== */
 .hidden { display: none !important; }

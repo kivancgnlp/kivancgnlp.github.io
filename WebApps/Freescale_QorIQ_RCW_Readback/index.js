@@ -139,6 +139,12 @@ function renderResults(result, filename) {
       <td>${bitsLabel}</td>
       <td>${escHtml(field.raw_hex)}</td>
       <td>${meaningCell}</td>`;
+
+    if (SERDES_FIELDS.has(field.name)) {
+      tr.classList.add("serdes-row");
+      attachSerdesHover(tr, field.name, field.raw_value, result.fields);
+    }
+
     tbody.appendChild(tr);
   });
 
@@ -452,6 +458,275 @@ function renderIssues(result) {
   }
 
   section.classList.remove("hidden");
+}
+
+// ── SerDes protocol tables ────────────────────────────────────────────────────
+// Source: P3041 Reference Manual Rev.4 Table 3-15 / T2080 Reference Manual Rev.4 Table 19-1
+//
+// P3041: single SRDS_PRTCL field.
+//   b1[0..9] = Bank1 lanes A-J (10 lanes)
+//   b2[0..3] = Bank2 lanes A-D (4 lanes)
+//   b3[0..3] = Bank3 lanes A-D (4 lanes)
+//
+// T2080: two fields SRDS_PRTCL_S1 and SRDS_PRTCL_S2.
+//   Each is an 8-element array for lanes A-H.
+
+const L = ["A","B","C","D","E","F","G","H","I","J"];
+
+// Shorthand helpers so the table below stays readable
+const p = (n,sp) => sp ? `PCIe${n} (${sp})` : `PCIe${n}`;
+const sg  = (n,sp) => `SGMII ${n}` + (sp ? ` (${sp})` : "");
+const xfi = (n)    => `XFI ${n}`;
+const sr  = (n,sp) => sp ? `sRIO${n} (${sp})` : `sRIO${n}`;
+
+const SERDES_P3041 = {
+  0x02: { b1:["PCIe1","PCIe1","PCIe1","PCIe1","PCIe2","PCIe2","PCIe2","PCIe2","PCIe4","Debug"],
+          b2:["PCIe3","SGMII EC2","SGMII EC3","SGMII EC4"],
+          b3:["—","—","SATA1","SATA2"] },
+  0x04: { b1:["sRIO2","sRIO2","sRIO2","sRIO2","sRIO1","sRIO1","sRIO1","sRIO1","PCIe2","Debug"],
+          b2:["PCIe3","SGMII EC2","SGMII EC3","SGMII EC4"],
+          b3:["XAUI/10GEC","XAUI/10GEC","XAUI/10GEC","XAUI/10GEC"] },
+  0x0B: { b1:["PCIe1","PCIe1","PCIe1","PCIe1","sRIO2","sRIO2","sRIO1","sRIO1","PCIe2","Debug"],
+          b2:["PCIe3","SGMII EC2","SGMII EC3","SGMII EC4"],
+          b3:["—","—","SATA1","SATA2"] },
+  0x10: { b1:["PCIe1","PCIe1","PCIe1","PCIe1","Debug","Debug","Debug","Debug","Debug","Debug"],
+          b2:["XAUI/10GEC","XAUI/10GEC","XAUI/10GEC","XAUI/10GEC"],
+          b3:["—","—","SATA1","SATA2"] },
+  0x11: { b1:["PCIe1","PCIe1","PCIe1","PCIe1","PCIe2","PCIe2","PCIe2","PCIe2","Debug","Debug"],
+          b2:["SGMII EC1","SGMII EC2","SGMII EC3","SGMII EC4"],
+          b3:["—","—","SATA1","SATA2"] },
+  0x13: { b1:["PCIe1","PCIe1","PCIe1","PCIe1","PCIe2","PCIe2","PCIe2","PCIe2","Debug","Debug"],
+          b2:["SGMII EC1","SGMII EC2","SGMII EC3","SGMII EC4"],
+          b3:["XAUI/10GEC","XAUI/10GEC","XAUI/10GEC","XAUI/10GEC"] },
+  0x14: { b1:["PCIe1","PCIe1","PCIe1","PCIe1","PCIe2","PCIe2","PCIe2","PCIe2","PCIe3","Debug"],
+          b2:["—","—","—","—"],
+          b3:["SGMII EC1 (3.125G)","SGMII EC2 (3.125G)","SGMII EC3 (3.125G)","SGMII EC4 (3.125G)"] },
+  0x15: { b1:["PCIe1","PCIe1","PCIe1","PCIe1","PCIe2","PCIe2","PCIe2","PCIe2","Debug","Debug"],
+          b2:["XAUI/10GEC","XAUI/10GEC","XAUI/10GEC","XAUI/10GEC"],
+          b3:["—","—","SATA1","SATA2"] },
+  0x16: { b1:["PCIe1","PCIe1","PCIe1","PCIe1","PCIe2","PCIe2","PCIe2","PCIe2","Debug","Debug"],
+          b2:["SGMII EC1","SGMII EC2","SGMII EC3","SGMII EC4"],
+          b3:["sRIO1 (3.125G)","sRIO1 (3.125G)","sRIO1 (3.125G)","sRIO1 (3.125G)"] },
+  0x17: { b1:["sRIO2","sRIO2","sRIO2","sRIO2","sRIO1","sRIO1","sRIO1","sRIO1","Debug","Debug"],
+          b2:["SGMII EC1","SGMII EC2","SGMII EC3","SGMII EC4"],
+          b3:["—","—","SATA1","SATA2"] },
+  0x18: { b1:["sRIO2","sRIO2","sRIO2","sRIO2","sRIO1","sRIO1","sRIO1","sRIO1","Debug","Debug"],
+          b2:["SGMII EC1","SGMII EC2","SGMII EC3","SGMII EC4"],
+          b3:["SGMII EC5 (3.125G)","—","—","—"] },
+  0x1B: { b1:["sRIO2","sRIO2","sRIO2","sRIO2","sRIO1","sRIO1","sRIO1","sRIO1","Debug","Debug"],
+          b2:["XAUI/10GEC","XAUI/10GEC","XAUI/10GEC","XAUI/10GEC"],
+          b3:["—","—","SATA1","SATA2"] },
+  0x1D: { b1:["sRIO2 (3.125G)","sRIO2 (3.125G)","sRIO2 (3.125G)","sRIO2 (3.125G)","sRIO1 (3.125G)","sRIO1 (3.125G)","sRIO1 (3.125G)","sRIO1 (3.125G)","Debug","Debug"],
+          b2:["PCIe3 (2.5G)","PCIe3 (2.5G)","PCIe3 (2.5G)","PCIe3 (2.5G)"],
+          b3:["—","—","SATA1","SATA2"] },
+  0x20: { b1:["PCIe1","PCIe1","PCIe1","PCIe1","sRIO1","sRIO1","sRIO1","sRIO1","Debug","Debug"],
+          b2:["SGMII EC1","SGMII EC2","SGMII EC3","SGMII EC4"],
+          b3:["XAUI/10GEC","XAUI/10GEC","XAUI/10GEC","XAUI/10GEC"] },
+  0x21: { b1:["PCIe1","PCIe1","PCIe1","PCIe1","sRIO1","sRIO1","sRIO1","sRIO1","PCIe3","Debug"],
+          b2:["—","—","—","—"],
+          b3:["SGMII EC1 (3.125G)","SGMII EC2 (3.125G)","SGMII EC3 (3.125G)","SGMII EC4 (3.125G)"] },
+  0x22: { b1:["PCIe1","PCIe1","PCIe1","PCIe1","sRIO1","sRIO1","sRIO1","sRIO1","Debug","Debug"],
+          b2:["XAUI/10GEC","XAUI/10GEC","XAUI/10GEC","XAUI/10GEC"],
+          b3:["—","—","SATA1","SATA2"] },
+  0x23: { b1:["PCIe1","PCIe1","PCIe1","PCIe1","sRIO2","sRIO2","sRIO1","sRIO1","Debug","Debug"],
+          b2:["SGMII EC1","SGMII EC2","SGMII EC3","SGMII EC4"],
+          b3:["—","—","SATA1","SATA2"] },
+  0x24: { b1:["PCIe1","PCIe1","PCIe1","PCIe1","sRIO2","sRIO2","sRIO1","sRIO1","Debug","Debug"],
+          b2:["SGMII EC1","SGMII EC2","SGMII EC3","SGMII EC4"],
+          b3:["SGMII EC5 (3.125G)","—","—","—"] },
+  0x28: { b1:["PCIe1","PCIe1","PCIe3","PCIe3","PCIe2","PCIe2","PCIe2","PCIe2","Debug","Debug"],
+          b2:["SGMII EC1","SGMII EC2","SGMII EC3","SGMII EC4"],
+          b3:["—","—","SATA1","SATA2"] },
+  0x29: { b1:["PCIe1","PCIe1","PCIe3","PCIe3","PCIe2","PCIe2","PCIe2","PCIe2","Debug","Debug"],
+          b2:["SGMII EC1","SGMII EC2","SGMII EC3","SGMII EC4"],
+          b3:["SGMII EC5 (3.125G)","—","—","—"] },
+  0x2A: { b1:["PCIe1","PCIe1","PCIe3","PCIe3","PCIe2","PCIe2","PCIe2","PCIe2","Debug","Debug"],
+          b2:["SGMII EC1","SGMII EC2","SGMII EC3","SGMII EC4"],
+          b3:["XAUI/10GEC","XAUI/10GEC","XAUI/10GEC","XAUI/10GEC"] },
+  0x2B: { b1:["PCIe1","PCIe1","PCIe3","PCIe3","PCIe2","PCIe2","PCIe2","PCIe2","Debug","Debug"],
+          b2:["XAUI/10GEC","XAUI/10GEC","XAUI/10GEC","XAUI/10GEC"],
+          b3:["—","—","SATA1","SATA2"] },
+  0x2F: { b1:["PCIe1","PCIe1","PCIe3","PCIe3","sRIO2","sRIO2","sRIO1","sRIO1","Debug","Debug"],
+          b2:["XAUI/10GEC","XAUI/10GEC","XAUI/10GEC","XAUI/10GEC"],
+          b3:["—","—","SATA1","SATA2"] },
+  0x31: { b1:["PCIe1","PCIe1","PCIe3","PCIe3","sRIO1","sRIO1","sRIO1","sRIO1","Debug","Debug"],
+          b2:["SGMII EC1","SGMII EC2","SGMII EC3","SGMII EC4"],
+          b3:["SGMII EC5 (3.125G)","—","—","—"] },
+  0x33: { b1:["PCIe1","PCIe1","PCIe3","PCIe3","sRIO1","sRIO1","sRIO1","sRIO1","Debug","Debug"],
+          b2:["XAUI/10GEC","XAUI/10GEC","XAUI/10GEC","XAUI/10GEC"],
+          b3:["—","—","SATA1","SATA2"] },
+  0x34: { b1:["PCIe1","PCIe1","PCIe1","PCIe1","SGMII EC1","SGMII EC2","SGMII EC3","SGMII EC4","Debug","Debug"],
+          b2:["XAUI/10GEC","XAUI/10GEC","XAUI/10GEC","XAUI/10GEC"],
+          b3:["—","—","SATA1","SATA2"] },
+  0x35: { b1:["PCIe1","PCIe1","PCIe2","PCIe2","SGMII EC3","SGMII EC4","Debug","Debug","—","—"],
+          b2:["XAUI/10GEC","XAUI/10GEC","XAUI/10GEC","XAUI/10GEC"],
+          b3:["—","—","SATA1","SATA2"] },
+  0x36: { b1:["PCIe1","PCIe1","PCIe3","PCIe3","SGMII EC1","SGMII EC2","SGMII EC3","SGMII EC4","Debug","Debug"],
+          b2:["XAUI/10GEC","XAUI/10GEC","XAUI/10GEC","XAUI/10GEC"],
+          b3:["—","—","SATA1","SATA2"] },
+  0x37: { b1:["PCIe1","PCIe1","PCIe3","PCIe3","PCIe2","PCIe2","SGMII EC3","SGMII EC4","Debug","Debug"],
+          b2:["XAUI/10GEC","XAUI/10GEC","XAUI/10GEC","XAUI/10GEC"],
+          b3:["—","—","SATA1","SATA2"] },
+};
+
+// T2080 SerDes 1 — lanes A-H (8 lanes)
+const SERDES_T2080_S1 = {
+  0x1C: ["SGMII 9","SGMII 10","SGMII 1","SGMII 2","SGMII 3","SGMII 4","SGMII 5","SGMII 6"],
+  0x95: ["SGMII 9","SGMII 10","SGMII 1","SGMII 2","SGMII 3","SGMII 4","SGMII 5","SGMII 6"],
+  0xA2: ["SGMII 9","SGMII 10","SGMII 1","SGMII 2","SGMII 3","SGMII 4","SGMII 5","SGMII 6"],
+  0x94: ["SGMII 9","SGMII 10","SGMII 1","SGMII 2","SGMII 3","SGMII 4","SGMII 5","SGMII 6"],
+  0x51: ["XAUI 9","XAUI 9","XAUI 9","XAUI 9","PCIe4","SGMII 4","SGMII 5","SGMII 6"],
+  0x5F: ["HiGig 9","HiGig 9","HiGig 9","HiGig 9","PCIe4","SGMII 4","SGMII 5","SGMII 6"],
+  0x65: ["HiGig 9","HiGig 9","HiGig 9","HiGig 9","PCIe4","SGMII 4","SGMII 5","SGMII 6"],
+  0x6A: ["XFI 9","XFI 10","XFI 1","XFI 2","PCIe4","SGMII 4","SGMII 5","SGMII 6"],
+  0x6B: ["XFI 9","XFI 10","XFI 1","XFI 2","PCIe4","SGMII 4","SGMII 5","SGMII 6"],
+  0x6C: ["XFI 9","XFI 10","SGMII 1","SGMII 2","PCIe4","—","—","—"],
+  0x6D: ["XFI 9","XFI 10","SGMII 1","SGMII 2","PCIe4","—","—","—"],
+  0x6E: ["XFI 9","XFI 10","SGMII 1","SGMII 2","PCIe4","SGMII 5","SGMII 6","—"],
+  0x66: ["XFI 9","XFI 10","XFI 1","XFI 2","PCIe4","—","—","—"],
+  0x67: ["XFI 9","XFI 10","XFI 1","XFI 2","PCIe4","—","—","—"],
+  0x71: ["XFI 9","XFI 10","SGMII 1","SGMII 2","PCIe4","SGMII 4","SGMII 5","SGMII 6"],
+  0x82: ["SGMII 9","SGMII 10","SGMII 1","SGMII 2","PCIe4","SGMII 5","SGMII 6","—"],
+  0x83: ["SGMII 9","SGMII 10","SGMII 1","SGMII 2","PCIe4","SGMII 5","SGMII 6","—"],
+  0x8A: ["SGMII 9","SGMII 10","SGMII 1","SGMII 2","PCIe4","—","—","—"],
+  0x8E: ["SGMII 9","SGMII 10","SGMII 1","SGMII 2","PCIe4","SGMII 5","SGMII 6","—"],
+  0x8F: ["SGMII 9","SGMII 10","SGMII 1","SGMII 2","PCIe4","SGMII 5","SGMII 6","—"],
+  0x96: ["SGMII 9","SGMII 10","SGMII 1","SGMII 2","PCIe4","—","—","—"],
+  0xA4: ["SGMII 9","SGMII 10","SGMII 1","SGMII 2","PCIe4","—","—","—"],
+  0xA6: ["SGMII 9","SGMII 10","SGMII 1","SGMII 2","PCIe4","SGMII 5","SGMII 6","—"],
+  0xAA: ["PCIe3","PCIe3","PCIe3","PCIe3","PCIe4","—","—","—"],
+  0xAB: ["PCIe3","PCIe3","PCIe3","PCIe3","PCIe4","—","—","—"],
+  0xBC: ["PCIe3","—","SGMII 1","SGMII 2","PCIe4","—","—","—"],
+  0xC8: ["PCIe3","SGMII 10","SGMII 1","SGMII 2","PCIe4","SGMII 5","SGMII 6","—"],
+  0xCB: ["PCIe3","SGMII 10","SGMII 1","SGMII 2","PCIe4","SGMII 4","SGMII 5","SGMII 6"],
+  0xD3: ["PCIe3","SGMII 10","SGMII 1","SGMII 2","PCIe4","SGMII 4","SGMII 5","SGMII 6"],
+  0xD6: ["PCIe3","SGMII 10","SGMII 1","SGMII 2","PCIe4","SGMII 5","SGMII 6","—"],
+  0xD8: ["PCIe3","SGMII 10","SGMII 1","SGMII 2","PCIe4","SGMII 4","SGMII 5","SGMII 6"],
+  0xD9: ["PCIe3","SGMII 10","SGMII 1","SGMII 2","PCIe4","SGMII 4","SGMII 5","SGMII 6"],
+  0xDA: ["PCIe3","PCIe3","PCIe3","PCIe3","—","—","—","—"],
+  0xDB: ["PCIe3","PCIe3","PCIe3","PCIe3","—","—","—","—"],
+  0xDE: ["PCIe3","PCIe3","PCIe4","PCIe4","PCIe1","PCIe1","PCIe2","SGMII 6"],
+  0xE0: ["PCIe3","PCIe3","PCIe4","PCIe4","PCIe1","SGMII 5","SGMII 6","—"],
+  0xF2: ["PCIe3","SGMII 10","SGMII 1","SGMII 2","PCIe4","PCIe1","PCIe2","SGMII 6"],
+  0xF8: ["PCIe3","SGMII 10","SGMII 1","SGMII 2","PCIe4","PCIe1","PCIe2","SGMII 6"],
+  0xFA: ["PCIe3","SGMII 10","SGMII 1","SGMII 2","PCIe4","PCIe1","SGMII 5","SGMII 6"],
+};
+
+// T2080 SerDes 2 — lanes A-H (8 lanes)
+const SERDES_T2080_S2 = {
+  0x01: ["PCIe1","PCIe1","PCIe1","PCIe1","—","—","—","—"],
+  0x02: ["PCIe1","PCIe1","PCIe1","PCIe1","—","—","—","—"],
+  0x15: ["PCIe1","PCIe1","PCIe1","PCIe1","PCIe2","PCIe2","SATA1","SATA2"],
+  0x16: ["PCIe1","PCIe1","PCIe1","PCIe1","PCIe2","PCIe2","SATA1","SATA2"],
+  0x18: ["PCIe1","PCIe1","PCIe1","PCIe1","Aurora","Aurora","SATA1","SATA2"],
+  0x1F: ["PCIe1","PCIe1","PCIe1","PCIe1","PCIe2","PCIe2","PCIe2","PCIe2"],
+  0x27: ["PCIe1","PCIe1","PCIe1","PCIe1","—","—","SATA1","SATA2"],
+  0x29: ["SRIO2","SRIO2","SRIO2","SRIO2","SRIO1","SRIO1","SRIO1","SRIO1"],
+  0x2D: ["SRIO2","SRIO2","SRIO2","SRIO2","SRIO1","SRIO1","SRIO1","SRIO1"],
+  0x2E: ["SRIO2","SRIO2","SRIO2","SRIO2","SRIO1","SRIO1","SRIO1","SRIO1"],
+  0x36: ["SRIO2","SRIO2","SRIO2","SRIO2","Aurora","Aurora","SATA1","SATA2"],
+};
+
+// Fields that trigger the SerDes tooltip
+const SERDES_FIELDS = new Set(["SRDS_PRTCL","SRDS_PRTCL_S1","SRDS_PRTCL_S2"]);
+
+function buildSerdesPopup(fieldName, rawValue, allFields) {
+  const tip = document.getElementById("serdes-tooltip");
+
+  if (fieldName === "SRDS_PRTCL") {
+    const entry = SERDES_P3041[rawValue];
+    if (!entry) return false;
+    tip.innerHTML = renderSerdesP3041(rawValue, entry);
+    return true;
+  }
+
+  if (fieldName === "SRDS_PRTCL_S1" || fieldName === "SRDS_PRTCL_S2") {
+    const s1Field = allFields.find(f => f.name === "SRDS_PRTCL_S1");
+    const s2Field = allFields.find(f => f.name === "SRDS_PRTCL_S2");
+    const s1Val = s1Field ? s1Field.raw_value : null;
+    const s2Val = s2Field ? s2Field.raw_value : null;
+    const s1Lanes = s1Val !== null ? SERDES_T2080_S1[s1Val] : null;
+    const s2Lanes = s2Val !== null ? SERDES_T2080_S2[s2Val] : null;
+    if (!s1Lanes && !s2Lanes) return false;
+    tip.innerHTML = renderSerdesT2080(s1Val, s1Lanes, s2Val, s2Lanes);
+    return true;
+  }
+
+  return false;
+}
+
+function laneTable(lanes, laneLabels) {
+  const headers = laneLabels.map(l => `<th>${l}</th>`).join("");
+  const cells   = lanes.map(v => {
+    const cls = v === "—" ? "sd-unused" : "sd-used";
+    return `<td class="${cls}">${escHtml(v)}</td>`;
+  }).join("");
+  return `<table class="sd-lane-table"><thead><tr>${headers}</tr></thead><tbody><tr>${cells}</tr></tbody></table>`;
+}
+
+function renderSerdesP3041(val, entry) {
+  const fmt = n => `0x${n.toString(16).toUpperCase().padStart(2,"0")}`;
+  return `
+    <div class="sd-title">SerDes Config — SRDS_PRTCL = ${fmt(val)}</div>
+    <div class="sd-group-label">Bank 1 (lanes A–J)</div>
+    ${laneTable(entry.b1, L.slice(0,10))}
+    <div class="sd-group-label">Bank 2 (lanes A–D)</div>
+    ${laneTable(entry.b2, L.slice(0,4))}
+    <div class="sd-group-label">Bank 3 (lanes A–D)</div>
+    ${laneTable(entry.b3, L.slice(0,4))}`;
+}
+
+function renderSerdesT2080(s1Val, s1Lanes, s2Val, s2Lanes) {
+  const fmt = n => n !== null ? `0x${n.toString(16).toUpperCase().padStart(2,"0")}` : "?";
+  let html = `<div class="sd-title">SerDes Config — S1=${fmt(s1Val)} · S2=${fmt(s2Val)}</div>`;
+  if (s1Lanes) {
+    html += `<div class="sd-group-label">SerDes 1 (SRDS_PRTCL_S1 = ${fmt(s1Val)}, lanes A–H)</div>`;
+    html += laneTable(s1Lanes, L.slice(0,8));
+  }
+  if (s2Lanes) {
+    html += `<div class="sd-group-label">SerDes 2 (SRDS_PRTCL_S2 = ${fmt(s2Val)}, lanes A–H)</div>`;
+    html += laneTable(s2Lanes, L.slice(0,8));
+  }
+  return html;
+}
+
+// Attach hover handlers to a table row
+function attachSerdesHover(tr, fieldName, rawValue, allFields) {
+  const tip = document.getElementById("serdes-tooltip");
+
+  tr.addEventListener("mouseenter", (e) => {
+    const ok = buildSerdesPopup(fieldName, rawValue, allFields);
+    if (!ok) return;
+    tip.classList.remove("hidden");
+    positionTooltip(e.currentTarget);
+  });
+
+  tr.addEventListener("mousemove", (e) => {
+    positionTooltip(e.currentTarget);
+  });
+
+  tr.addEventListener("mouseleave", () => {
+    tip.classList.add("hidden");
+  });
+}
+
+function positionTooltip(anchorEl) {
+  const tip  = document.getElementById("serdes-tooltip");
+  const rect = anchorEl.getBoundingClientRect();
+  const scrollY = window.scrollY;
+  const scrollX = window.scrollX;
+
+  let top  = rect.bottom + scrollY + 6;
+  let left = rect.left   + scrollX;
+
+  // Keep within right edge
+  const tipW = tip.offsetWidth;
+  if (left + tipW > window.innerWidth + scrollX - 16) {
+    left = window.innerWidth + scrollX - tipW - 16;
+  }
+
+  tip.style.top  = `${top}px`;
+  tip.style.left = `${left}px`;
 }
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
