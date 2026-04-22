@@ -53,6 +53,33 @@ dropZone.addEventListener("drop", (e) => {
   }
 });
 
+// ── Sample file loader ───────────────────────────────────────────────────────
+
+const SAMPLE_URL = "https://raw.githubusercontent.com/kivancgnlp/Freescale_QorIQ_RCW_Readback/main/Sample%20input%20data/P3041/Super_hydra_i2cden_okunan.bin";
+const SAMPLE_NAME = "Super_hydra_i2cden_okunan.bin";
+
+document.getElementById("sample-link").addEventListener("click", async (e) => {
+  e.preventDefault();
+  const link = e.currentTarget;
+  link.textContent = "Loading…";
+  link.style.pointerEvents = "none";
+  try {
+    const resp = await fetch(SAMPLE_URL);
+    if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+    const blob = await resp.blob();
+    selectedFile = new File([blob], SAMPLE_NAME, { type: "application/octet-stream" });
+    dropZone.querySelector(".drop-hint").textContent = SAMPLE_NAME;
+    document.getElementById("processor-select").value = "P3041";
+    updateParseButton();
+    link.textContent = "Sample ROM image from Super Hydra dev board for P3041 processor";
+  } catch (err) {
+    showError(`Could not load sample file: ${err.message}`);
+    link.textContent = "Sample ROM image from Super Hydra dev board for P3041 processor";
+  } finally {
+    link.style.pointerEvents = "";
+  }
+});
+
 // ── SYSCLK live recalculation ────────────────────────────────────────────────
 
 document.getElementById("sysclk-input").addEventListener("input", () => {
